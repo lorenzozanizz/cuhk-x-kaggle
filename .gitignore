@@ -1,0 +1,8 @@
+
+# Do not push env files
+.env
+*.env
+
+backups/
+./backups/
+backups/*
