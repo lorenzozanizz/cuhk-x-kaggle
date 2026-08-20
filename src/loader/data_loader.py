@@ -18,6 +18,15 @@ import collections
 # big libraries
 from torch.utils.data import Dataset
 
+import enum
+
+class Modality(enum.Enum):
+    DEPTH_COLOR = "Depth_Color"
+    IMU = "IMU"
+    IR = "IR"
+    RADAR = "Radar"
+    SKELETON = "Skeleton"
+    THERMAL = "Thermal"
 
 class DataIndex:
 
@@ -75,7 +84,6 @@ class DataIndex:
         if total_samples == 0:
             return
 
-        # -compute per modality counts using Counter
         modality_counts = collections.Counter()
         for entry in self._samples.values():
             for modality in entry["paths"]:
@@ -87,7 +95,6 @@ class DataIndex:
             pct = 100.0 * count / total_samples
             print(f"  {modality:<15s}: {count:>6d}  ({pct:5.1f}%)")
 
-        # --- completeness (samples having all modalities) ---
         n_modalities = len(MODALITIES)
         complete = sum(
             1 for entry in self._samples.values()
@@ -107,19 +114,28 @@ class DataIndex:
             for missing, cnt in sorted(missing_breakdown.items(), key=lambda x: -x[1]):
                 print(f"  missing {missing}: {cnt} samples")
 
-        # --- per-action counts ---
         action_counts = collections.Counter(entry["label"] for entry in self._samples.values())
         print(f"\nActions found: {len(action_counts)}")
         for action_id in sorted(action_counts):
             print(f"  action {action_id:>3d}: {action_counts[action_id]:>6d} samples")
 
-        # --- per-user counts ---
         user_counts = collections.Counter(entry["user"] for entry in self._samples.values())
         print(f"\nUsers found: {len(user_counts)}")
         for user in sorted(user_counts):
             print(f"  {user:<15s}: {user_counts[user]:>6d} samples")
 
         print(f"{'=' * 60}\n")
+
+    def get_samples_by_modality(self, modality: Modality) -> list:
+        """ Return only the samples that have data for the given modality. """
+        if not isinstance(modality, Modality):
+            raise TypeError(f"modality must be a Modality enum member, got {type(modality)!r}")
+
+        mod_str = modality.value
+        return [
+            entry for entry in self._samples.values()
+            if mod_str in entry["paths"]
+        ]
 
 def split_by_user(samples, val_fraction=0.2, seed=0):
     """ Group split: validation users never appear in training. This matches the
